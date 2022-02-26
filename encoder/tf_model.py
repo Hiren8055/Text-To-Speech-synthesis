@@ -9,7 +9,7 @@ from torch import nn
 import numpy as np
 import torch
 import tensorflow as tf
-#
+
 class SpeakerEncoder(nn.Module):
     # def __init__(self, device, loss_device):
     def __init__(self):
