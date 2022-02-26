@@ -1,0 +1,12 @@
+umap-learn
+visdom
+unidecode
+inflect
+tqdm
+sounddevice
+SoundFile
+
+PyQt5
+multiprocess
+numba
+webrtcvad; platform_system != "Windows"

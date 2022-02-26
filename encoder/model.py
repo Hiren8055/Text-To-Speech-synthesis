@@ -8,48 +8,27 @@ from scipy.optimize import brentq
 from torch import nn
 import numpy as np
 import torch
-import tensorflow as tf
-#
+
+
 class SpeakerEncoder(nn.Module):
-    # def __init__(self, device, loss_device):
-    def __init__(self):
+    def __init__(self, device, loss_device):
         super().__init__()
-        # self.loss_device = loss_device
+        self.loss_device = loss_device
         
-        # # Network defition
-        # self.lstm = nn.LSTM(input_size=mel_n_channels,
-        #                     hidden_size=model_hidden_size, 
-        #                     num_layers=model_num_layers, 
-        #                     batch_first=True).to(device)
-        # self.linear = nn.Linear(in_features=model_hidden_size, 
-        #                         out_features=model_embedding_size).to(device)
-        # self.relu = torch.nn.ReLU().to(device)
+        # Network defition
+        self.lstm = nn.LSTM(input_size=mel_n_channels,
+                            hidden_size=model_hidden_size, 
+                            num_layers=model_num_layers, 
+                            batch_first=True).to(device)
+        self.linear = nn.Linear(in_features=model_hidden_size, 
+                                out_features=model_embedding_size).to(device)
+        self.relu = torch.nn.ReLU().to(device)
         
-        with tf.variable_scope("lstm_embedding"):
-        # Create Embedding Using LSTM
-            self.stacked_lstm = tf.nn.rnn_cell.MultiRNNCell([
-                                                        tf.nn.rnn_cell.LSTMCell                          
-                                                        (
-                                                            self.hparams.num_lstm_cells,                  
-                                                            num_proj=self.hparams.dim_lstm_projection     #https://www.hindawi.com/journals/jr/2017/2061827/
-                                                        ) for _ in range(self.hparams.num_lstm_stacks)]) #num_lstm_stacks = 3   num_lstm_cells = 768   dim_lstm_projection =256 
-            self.dense = 
-
-################## add linear and relu layer
-################## changes is pending where forward is being called
-
-            ## L2 Normalize the output of the last layer at the final frame
-            ## norm_out is a tensor of [batch_size, output_size], by default, [640, 256(proj_nodes)]
-
-                   
-
         # Cosine similarity scaling (with fixed initial parameter values)
-
         self.similarity_weight = nn.Parameter(torch.tensor([10.])).to(loss_device)
         self.similarity_bias = nn.Parameter(torch.tensor([-5.])).to(loss_device)
 
         # Loss
-
         self.loss_fn = nn.CrossEntropyLoss().to(loss_device)
         
     def do_gradient_ops(self):
@@ -72,22 +51,16 @@ class SpeakerEncoder(nn.Module):
         """
         # Pass the input through the LSTM layers and retrieve all outputs, the final hidden state
         # and the final cell state.
-        # out, (hidden, cell) = self.lstm(utterances, hidden_init)
+        out, (hidden, cell) = self.lstm(utterances, hidden_init)
         
         # We take only the hidden state of the last layer
-        # embeds_raw = self.relu(self.linear(hidden[-1]))
+        embeds_raw = self.relu(self.linear(hidden[-1]))
         
         # L2-normalize it
-#############################################################################################
-        outputs, state = tf.nn.dynamic_rnn(cell=self.stacked_lstm, inputs=self.input_batch, dtype=tf.float32)
+        embeds = embeds_raw / (torch.norm(embeds_raw, dim=1, keepdim=True) + 1e-5)
+        print('model/forward - embeds.shape',embeds.shape)        
 
-        norm_out = tf.nn.l2_normalize(outputs[:, -1, :], axis=-1)
-#############################################################################################
-        # embeds = embeds_raw / (torch.norm(embeds_raw, dim=1, keepdim=True) + 1e-5)
-        print('model/forward - embeds.shape',norm_out.shape)        
-
-        # return embeds
-        return norm_out
+        return embeds
     
     def similarity_matrix(self, embeds):
         """
