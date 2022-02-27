@@ -105,6 +105,9 @@ class SpeakerEncoder(nn.Module):
         # sim_matrix2[mask] = (embeds * centroids_excl).sum(dim=2)
         # sim_matrix2 = sim_matrix2.transpose(1, 2)
         
+        
+        # self.similarity_weight = nn.Parameter(torch.tensor([10.])).to(loss_device)
+        # self.similarity_bias = nn.Parameter(torch.tensor([-5.])).to(loss_device)
         sim_matrix = sim_matrix * self.similarity_weight + self.similarity_bias
         print("sim_matrix.shape",sim_matrix.shape)
         return sim_matrix
@@ -124,13 +127,16 @@ class SpeakerEncoder(nn.Module):
         sim_matrix = sim_matrix.reshape((speakers_per_batch * utterances_per_speaker, 
                                          speakers_per_batch))
         ground_truth = np.repeat(np.arange(speakers_per_batch), utterances_per_speaker)
+        print("ground_truth",ground_truth)
         target = torch.from_numpy(ground_truth).long().to(self.loss_device)
+        print("target",target)
         loss = self.loss_fn(sim_matrix, target)
         
         # EER (not backpropagated)
         with torch.no_grad():
             inv_argmax = lambda i: np.eye(1, speakers_per_batch, i, dtype=np.int)[0]
             labels = np.array([inv_argmax(i) for i in ground_truth])
+            print("labels",labels)
             preds = sim_matrix.detach().cpu().numpy()
 
             # Snippet from https://yangcha.github.io/EER-ROC/
@@ -138,3 +144,5 @@ class SpeakerEncoder(nn.Module):
             eer = brentq(lambda x: 1. - x - interp1d(fpr, tpr)(x), 0., 1.)
             
         return loss, eer
+
+# loss -> similarity_matrix
